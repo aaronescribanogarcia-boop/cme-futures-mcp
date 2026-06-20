@@ -13,6 +13,7 @@ Datasets (universes do NOT fully overlap):
 """
 from __future__ import annotations
 
+import logging
 import math
 from typing import Any
 
@@ -23,6 +24,11 @@ import pyarrow.parquet as pq
 from . import contracts, paths
 from .serialization import df_to_bars, fmt_ts
 from .storage import get_parquet_path_ro, load_ohlcv
+
+logger = logging.getLogger(__name__)
+
+# Bumped when the shape of any tool response changes (clients can pin to it).
+SCHEMA_VERSION = "1"
 
 SOURCE_BADJ = "databento-badj"
 SOURCE_YAHOO = "yahoo-unadjusted"
@@ -116,12 +122,14 @@ def _load_series(symbol: str, timeframe: str) -> tuple[pd.DataFrame, str, bool]:
     # guard against path traversal (e.g. "../evil" is never a known symbol);
     # the timeframe check rejects arbitrary strings before any path is built.
     if timeframe not in PERIODS_PER_YEAR:
+        logger.warning("rejected invalid timeframe %r", timeframe)
         raise TimeframeError(
             f"Unknown timeframe '{timeframe}'. Valid: {sorted(PERIODS_PER_YEAR)}"
         )
     if sym not in (
         set(_badj_symbols()) | set(_yahoo_symbols()) | set(contracts.all_symbols())
     ):
+        logger.warning("rejected unknown symbol %r", symbol)
         raise InstrumentError(
             f"Unknown instrument '{symbol}'. "
             "Call list_instruments() to see available symbols."
@@ -224,6 +232,7 @@ def get_ohlcv(
 
     bars, truncated, n_total = df_to_bars(df, max_rows, _tick_size(sym))
     return {
+        "schema_version": SCHEMA_VERSION,
         "symbol": sym,
         "timeframe": timeframe,
         "source": source,
@@ -259,6 +268,7 @@ def get_summary_stats(
     n = len(df)
     if n == 0:
         return {
+            "schema_version": SCHEMA_VERSION,
             "symbol": sym, "timeframe": timeframe, "source": source,
             "adjusted": adjusted, "n_bars": 0, "start": None, "end": None,
             "note": "No bars in the requested range.",
@@ -294,6 +304,7 @@ def get_summary_stats(
     )
 
     out = {
+        "schema_version": SCHEMA_VERSION,
         "symbol": sym,
         "timeframe": timeframe,
         "source": source,
@@ -324,6 +335,7 @@ def get_contract_specs(symbol: str) -> dict[str, Any]:
     except KeyError as e:
         raise InstrumentError(str(e)) from e
     return {
+        "schema_version": SCHEMA_VERSION,
         "symbol": spec.symbol,
         "exchange": spec.exchange,
         "tick_size": spec.tick_size,

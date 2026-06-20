@@ -54,7 +54,11 @@ directory next to the package.
 CME_FUTURES_DATA_DIR=/path/to/data python -m cme_futures_mcp.server
 ```
 
-## Client registration (Claude Code)
+## Client registration
+
+The same server block works across MCP clients (it speaks stdio).
+
+**Claude Code** — `.mcp.json` in the repo root:
 
 ```json
 {
@@ -68,7 +72,14 @@ CME_FUTURES_DATA_DIR=/path/to/data python -m cme_futures_mcp.server
 }
 ```
 
-Restart the client and check `/mcp` shows `cme-futures` connected.
+**Cursor** — `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global): same
+`mcpServers` block as above.
+
+**Claude Desktop** — `claude_desktop_config.json` (Settings → Developer → Edit
+Config): same `mcpServers` block.
+
+Restart the client and confirm `cme-futures` shows as connected (`/mcp` in
+Claude Code).
 
 ## Development
 

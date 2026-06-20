@@ -1,27 +1,55 @@
 """FastMCP stdio server for algo-trading futures data.
 
-Thin tools that delegate to the pure `data_access` layer and translate domain
-errors into helpful messages. Run:
+Thin tools that delegate to the pure `data_access` layer. Domain and unexpected
+errors are surfaced via ToolError (the protocol marks the result isError=true);
+unexpected errors are logged to stderr and never leak a stack trace to the
+client. Run:
   uv run --project <repo> python -m src.mcp_server.server
 """
 from __future__ import annotations
 
+import logging
+import sys
+from collections.abc import Callable
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
+from mcp.types import ToolAnnotations
 
 from . import data_access as da
 
+logger = logging.getLogger(__name__)
+
 mcp = FastMCP("algotrading-data")
 
+# Every tool here is a pure read: no state change, safe to retry.
+_READ_ONLY = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False)
 
-@mcp.tool()
+
+def _call(fn: Callable[..., Any], *args: Any) -> Any:
+    """Run a data_access call, mapping errors to ToolError (isError=true).
+
+    Expected domain/validation errors keep their message; anything unexpected is
+    logged with traceback to stderr and returned as a generic message so no
+    stack trace or internal path reaches the client.
+    """
+    try:
+        return fn(*args)
+    except (da.InstrumentError, da.TimeframeError, ValueError) as e:
+        raise ToolError(str(e)) from e
+    except Exception as e:  # noqa: BLE001 - last-resort guard for the transport
+        logger.exception("tool %s failed", getattr(fn, "__name__", "?"))
+        raise ToolError(f"internal error: {type(e).__name__}") from e
+
+
+@mcp.tool(annotations=_READ_ONLY)
 def ping() -> str:
     """Health check. Returns 'pong' if the server is wired correctly."""
     return "pong"
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 def list_instruments() -> list[dict[str, Any]]:
     """List available futures instruments.
 
@@ -30,10 +58,10 @@ def list_instruments() -> list[dict[str, Any]]:
     continuous, DAILY only) and 'yahoo-unadjusted' (stitched front-month, NOT
     adjusted). Use this first to discover what to request.
     """
-    return da.list_instruments()
+    return _call(da.list_instruments)
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 def get_ohlcv(
     symbol: str,
     timeframe: str = "1d",
@@ -56,15 +84,10 @@ def get_ohlcv(
         end: Inclusive ISO date/datetime UTC.
         n_bars: Return only the most recent N bars.
     """
-    try:
-        return da.get_ohlcv(symbol, timeframe, start, end, n_bars)
-    except (da.InstrumentError, da.TimeframeError) as e:
-        return {"error": str(e)}
-    except (ValueError, TypeError, ArithmeticError) as e:
-        return {"error": f"Request error: {type(e).__name__}: {e}"}
+    return _call(da.get_ohlcv, symbol, timeframe, start, end, n_bars)
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 def get_contract_specs(symbol: str) -> dict[str, Any]:
     """Return contract specifications for a registered futures symbol.
 
@@ -74,15 +97,10 @@ def get_contract_specs(symbol: str) -> dict[str, Any]:
     Args:
         symbol: Root symbol, case-insensitive, e.g. "MNQ", "es".
     """
-    try:
-        return da.get_contract_specs(symbol)
-    except da.InstrumentError as e:
-        return {"error": str(e)}
-    except (ValueError, TypeError) as e:
-        return {"error": f"Request error: {type(e).__name__}: {e}"}
+    return _call(da.get_contract_specs, symbol)
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 def get_summary_stats(
     symbol: str,
     timeframe: str = "1d",
@@ -101,15 +119,16 @@ def get_summary_stats(
         start: Inclusive ISO date/datetime UTC.
         end: Inclusive ISO date/datetime UTC.
     """
-    try:
-        return da.get_summary_stats(symbol, timeframe, start, end)
-    except (da.InstrumentError, da.TimeframeError) as e:
-        return {"error": str(e)}
-    except (ValueError, TypeError, ArithmeticError) as e:
-        return {"error": f"Request error: {type(e).__name__}: {e}"}
+    return _call(da.get_summary_stats, symbol, timeframe, start, end)
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        stream=sys.stderr,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    logger.info("starting algotrading-data MCP server (stdio)")
     mcp.run()
 
 

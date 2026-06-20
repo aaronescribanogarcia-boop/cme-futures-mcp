@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "cme-futures-mcp"
@@ -25,8 +25,8 @@ cme-futures-mcp = "cme_futures_mcp.server:main"
 [project.entry-points."mcp.server"]
 cme-futures = "cme_futures_mcp.server:mcp"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/cme_futures_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
