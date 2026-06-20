@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cme-futures-mcp"
+version = "0.1.0"
+description = "MCP server exposing normalized CME futures data: back-adjusted continuous bars, contract specs and summary stats."
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "Proprietary" }
+dependencies = [
+    "mcp>=1.2",
+    "pandas>=2.2,<3.0",
+    "pyarrow>=16,<24",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-timeout", "ruff"]
+
+[project.scripts]
+cme-futures-mcp = "cme_futures_mcp.server:main"
+
+[project.entry-points."mcp.server"]
+cme-futures = "cme_futures_mcp.server:mcp"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: end-to-end / stdio tests (deselect with -m 'not slow')"]
+
+[tool.ruff]
+line-length = 99
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
