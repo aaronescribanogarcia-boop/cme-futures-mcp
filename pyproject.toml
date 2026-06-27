@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "MCP server exposing normalized CME futures data: back-adjusted continuous bars, contract specs and summary stats."
 requires-python = ">=3.11"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "Aarón Escribano García" }]
 dependencies = [
     "mcp>=1.2",

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/aaronescribanogarcia-boop/cme-futures-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/aaronescribanogarcia-boop/cme-futures-mcp/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
 
 MCP server that exposes **normalized CME futures data** to any MCP client
 (Claude Code, Cursor, Windsurf). It serves back-adjusted continuous daily bars,
